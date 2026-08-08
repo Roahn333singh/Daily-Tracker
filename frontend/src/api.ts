@@ -156,10 +156,41 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   })
   if (!res.ok) {
     const text = await res.text()
-    throw new Error(text || `Request failed: ${res.status}`)
+    let message = text || `Request failed: ${res.status}`
+    try {
+      const j = JSON.parse(text) as { detail?: unknown }
+      if (typeof j.detail === 'string') message = j.detail
+      else if (Array.isArray(j.detail)) {
+        message = j.detail
+          .map((d) =>
+            typeof d === 'object' && d && 'msg' in d
+              ? String((d as { msg: string }).msg)
+              : JSON.stringify(d),
+          )
+          .join('; ')
+      } else if (j.detail != null) message = JSON.stringify(j.detail)
+    } catch {
+      // keep raw text (avoid showing HTML SPA shells as unhelpful noise)
+      if (text.trimStart().startsWith('<!')) {
+        message = `Server error (${res.status}). Try again — if this persists, the API route may be misconfigured.`
+      }
+    }
+    throw new Error(message)
   }
   if (res.status === 204) return undefined as T
-  return res.json() as Promise<T>
+  // Empty body guard
+  const bodyText = await res.text()
+  if (!bodyText) {
+    if (res.status === 201 || res.status === 200) {
+      throw new Error('Server returned an empty response — goal may not have been saved')
+    }
+    return undefined as T
+  }
+  try {
+    return JSON.parse(bodyText) as T
+  } catch {
+    throw new Error('Server returned invalid JSON')
+  }
 }
 
 export const api = {

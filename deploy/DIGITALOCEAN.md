@@ -104,7 +104,26 @@ VISION_PROVIDER=gemini
 
 Never commit this file. `docker-compose` loads `backend/.env` into the API container.
 
-## 6. Build and run
+## 7. Persistence (read this)
+
+**App Platform has no durable local disk.** Anything written to SQLite under `/data` is **wiped on every deploy**.
+
+This app supports:
+
+| Host | Storage |
+|------|---------|
+| App Platform | **Managed Postgres** via `DATABASE_URL` (see `.do/app.yaml`) |
+| Droplet + Compose | SQLite on Docker volume `tracker_data` |
+
+After linking a managed DB, check `GET /api/health` → `"db": "postgresql+psycopg://…"` and `"persistent_hint": "postgres"`.
+
+If health still shows `sqlite:…`, attach the DB in the App Platform UI:
+**Resources → Create → Database**, then set env `DATABASE_URL` = the connection string
+(or use bindable `${db-name.DATABASE_URL}`).
+
+---
+
+## 8. Build and run (Droplet Compose)
 
 ```bash
 cd /opt/daily-tracker
@@ -116,7 +135,7 @@ curl -s http://127.0.0.1/api/health
 Open in browser: **http://YOUR_DROPLET_IP**
 
 - App UI: `/`
-- API health: `/api/health`
+- API health: `/api/health` (includes `db` field)
 - Swagger: `/docs`
 - SQLite + meal photos persist in Docker volume `tracker_data`
 

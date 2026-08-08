@@ -48,11 +48,14 @@ export function TrackerPage() {
     setError(null)
     try {
       const data = await api.listGoals()
-      // Fuel goals first so photo tracking is easy to spot
+      // Fuel first, then newest habit first so create never looks "lost" in the tab strip
       data.sort((a, b) => {
         if (a.kind === 'fuel' && b.kind !== 'fuel') return -1
         if (b.kind === 'fuel' && a.kind !== 'fuel') return 1
-        return (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id - b.id
+        const tb = b.created_at ? Date.parse(b.created_at) : 0
+        const ta = a.created_at ? Date.parse(a.created_at) : 0
+        if (tb !== ta) return tb - ta
+        return (a.sort_order ?? 0) - (b.sort_order ?? 0) || b.id - a.id
       })
       setGoals(data)
       setActiveId((prev) => {

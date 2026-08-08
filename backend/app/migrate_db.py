@@ -1,4 +1,4 @@
-"""SQLite-friendly schema patches for existing DBs."""
+"""Schema patches for existing DBs (SQLite + Postgres)."""
 
 from __future__ import annotations
 
@@ -13,10 +13,16 @@ def ensure_column(engine: Engine, table: str, column: str, ddl_type: str) -> Non
     cols = {c["name"] for c in insp.get_columns(table)}
     if column in cols:
         return
+    # SQLite tolerates DEFAULT in ADD COLUMN; Postgres too for plain defaults
     with engine.begin() as conn:
         conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {column} {ddl_type}"))
 
 
 def migrate_schema(engine: Engine) -> None:
-    ensure_column(engine, "goals", "kind", "VARCHAR(20) DEFAULT 'habit'")
-    ensure_column(engine, "goals", "fuel_target_kcal", "INTEGER")
+    dialect = engine.dialect.name
+    if dialect == "postgresql":
+        ensure_column(engine, "goals", "kind", "VARCHAR(20) DEFAULT 'habit'")
+        ensure_column(engine, "goals", "fuel_target_kcal", "INTEGER")
+    else:
+        ensure_column(engine, "goals", "kind", "VARCHAR(20) DEFAULT 'habit'")
+        ensure_column(engine, "goals", "fuel_target_kcal", "INTEGER")

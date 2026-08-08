@@ -125,7 +125,12 @@ export function GoalFormPage() {
         navigate(`/goals/${id}`)
       } else {
         const created = await api.createGoal(payload)
-        navigate(`/goals/${created.id}`)
+        if (!created?.id) {
+          setError('Create succeeded but no goal id returned')
+          return
+        }
+        // Land on tracker with this goal selected so it cannot “vanish” behind Fuel tab
+        navigate(`/?goal=${created.id}`)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed')

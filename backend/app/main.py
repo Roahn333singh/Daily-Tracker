@@ -7,6 +7,7 @@ from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 # Load backend/.env so GEMINI_API_KEY works without exporting in shell
@@ -14,7 +15,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 load_dotenv()  # also cwd
 
 from . import models, schemas
-from .database import Base, engine, get_db
+from .database import Base, db_backend_label, engine, get_db, ping_db
 from .food_pack import item_from_pack, load_food_pack, search_food_pack
 from .fuel_services import (
     day_meal_totals,
@@ -43,7 +44,7 @@ migrate_schema(engine)
 app = FastAPI(
     title="Programming Daily Tracker",
     description="Daily tracker + photo-first calorie estimation",
-    version="1.1.0",
+    version="1.2.0",
 )
 
 app.add_middleware(
@@ -86,11 +87,24 @@ def load_goal(db: Session, goal_id: int) -> models.Goal:
     return goal
 
 
+def _next_sort_order(db: Session) -> int:
+    current = db.query(func.max(models.Goal.sort_order)).scalar()
+    return int(current or 0) + 1
+
+
 @app.get("/api/health")
 def health():
     status = vision_status()
+    ok_db = ping_db()
     return {
-        "status": "ok",
+        "status": "ok" if ok_db else "degraded",
+        "db_ok": ok_db,
+        "db": db_backend_label(),
+        "persistent_hint": (
+            "sqlite_local"
+            if db_backend_label().startswith("sqlite")
+            else "postgres"
+        ),
         "vision_configured": status["configured"],
         "vision_provider": status["provider"],
         "vision_source": status["source"],
@@ -129,7 +143,11 @@ def list_goals(db: Session = Depends(get_db)):
         .order_by(models.Goal.sort_order, models.Goal.id)
         .all()
     )
-    return [enrich_goal(g) for g in goals]
+    # de-dupe parent rows from multi-collection joinedload
+    unique: dict[int, models.Goal] = {}
+    for g in goals:
+        unique[g.id] = g
+    return [enrich_goal(g) for g in unique.values()]
 
 
 @app.get("/api/goals/{goal_id}", response_model=schemas.GoalOut)
@@ -139,37 +157,71 @@ def get_goal(goal_id: int, db: Session = Depends(get_db)):
 
 @app.post("/api/goals", response_model=schemas.GoalOut, status_code=201)
 def create_goal(payload: schemas.GoalCreate, db: Session = Depends(get_db)):
-    kind = payload.kind or "habit"
-    if kind == "fuel" and not payload.fuel_target_kcal:
-        raise HTTPException(status_code=400, detail="fuel_target_kcal required for fuel goals")
+    title = (payload.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Title is required")
+
+    kind = (payload.kind or "habit").strip().lower()
+    if kind not in ("habit", "fuel"):
+        raise HTTPException(status_code=400, detail="kind must be habit or fuel")
+
+    if kind == "fuel":
+        target = payload.fuel_target_kcal
+        if target is None or target < 500:
+            raise HTTPException(
+                status_code=400,
+                detail="fuel_target_kcal required for fuel goals (min 500)",
+            )
+    else:
+        target = None
+
+    start = payload.start_date or date.today()
+    if payload.duration_days < 1:
+        raise HTTPException(status_code=400, detail="duration_days must be >= 1")
+
+    # User-created goals get the next sort slot (don't all collapse to 0)
+    sort_order = payload.sort_order if payload.sort_order not in (None, 0) else _next_sort_order(db)
+
     goal = models.Goal(
-        title=payload.title,
-        description=payload.description,
-        icon=payload.icon,
+        title=title[:200],
+        description=(payload.description or "").strip(),
+        icon=(payload.icon or "target-wobble")[:40],
         duration_days=payload.duration_days,
-        start_date=payload.start_date or date.today(),
-        accent_color=payload.accent_color,
-        completion_emoji=payload.completion_emoji,
-        is_active=payload.is_active,
-        sort_order=payload.sort_order,
+        start_date=start,
+        accent_color=payload.accent_color or "#2563EB",
+        completion_emoji=(payload.completion_emoji or "stamp-orbit")[:40],
+        is_active=True if payload.is_active is None else bool(payload.is_active),
+        sort_order=sort_order,
         kind=kind,
-        fuel_target_kcal=payload.fuel_target_kcal if kind == "fuel" else None,
+        fuel_target_kcal=target,
     )
     db.add(goal)
     db.flush()
 
-    for i, sg in enumerate(payload.sub_goals):
+    clean_subs = [
+        sg
+        for sg in (payload.sub_goals or [])
+        if (sg.title or "").strip()
+    ]
+    for i, sg in enumerate(clean_subs):
         db.add(
             models.SubGoal(
                 goal_id=goal.id,
-                title=sg.title,
-                icon=sg.icon,
-                sort_order=sg.sort_order if sg.sort_order else i,
+                title=sg.title.strip()[:200],
+                icon=(sg.icon or "sub-dot")[:40],
+                sort_order=sg.sort_order if sg.sort_order is not None else i,
             )
         )
 
-    db.commit()
-    return enrich_goal(load_goal(db, goal.id))
+    try:
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Could not save goal: {exc}") from exc
+
+    db.expire_all()
+    created = load_goal(db, goal.id)
+    return enrich_goal(created)
 
 
 @app.patch("/api/goals/{goal_id}", response_model=schemas.GoalOut)
@@ -178,22 +230,55 @@ def update_goal(goal_id: int, payload: schemas.GoalUpdate, db: Session = Depends
     data = payload.model_dump(exclude_unset=True)
     sub_goals = data.pop("sub_goals", None)
 
+    if "title" in data and data["title"] is not None:
+        data["title"] = str(data["title"]).strip()
+        if not data["title"]:
+            raise HTTPException(status_code=400, detail="Title cannot be empty")
+
+    if "kind" in data and data["kind"] is not None:
+        kind = str(data["kind"]).strip().lower()
+        if kind not in ("habit", "fuel"):
+            raise HTTPException(status_code=400, detail="kind must be habit or fuel")
+        data["kind"] = kind
+        if kind == "habit":
+            data["fuel_target_kcal"] = None
+        elif kind == "fuel" and data.get("fuel_target_kcal") is None and not goal.fuel_target_kcal:
+            raise HTTPException(status_code=400, detail="fuel_target_kcal required for fuel goals")
+
     for key, value in data.items():
         setattr(goal, key, value)
 
     if sub_goals is not None:
+        # Replace only when client sent the array (not omitted)
         goal.sub_goals.clear()
         db.flush()
         for i, sg in enumerate(sub_goals):
+            if not isinstance(sg, dict):
+                # safety if pydantic objects slip through
+                title = str(getattr(sg, "title", "") or "").strip()
+                icon = str(getattr(sg, "icon", "sub-dot") or "sub-dot")
+                so = getattr(sg, "sort_order", i)
+            else:
+                title = str(sg.get("title") or "").strip()
+                icon = str(sg.get("icon") or "sub-dot")
+                so = sg.get("sort_order", i)
+            if not title:
+                continue
             goal.sub_goals.append(
                 models.SubGoal(
-                    title=sg["title"],
-                    icon=sg.get("icon", "sub-dot"),
-                    sort_order=sg.get("sort_order", i),
+                    title=title[:200],
+                    icon=icon[:40],
+                    sort_order=int(so) if so is not None else i,
                 )
             )
 
-    db.commit()
+    try:
+        db.commit()
+    except Exception as exp:  # noqa: BLE001
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Could not update goal: {exp}") from exp
+
+    db.expire_all()
     return enrich_goal(load_goal(db, goal_id))
 
 
@@ -211,15 +296,28 @@ def add_sub_goal(
     payload: schemas.SubGoalCreate,
     db: Session = Depends(get_db),
 ):
+    title = (payload.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=400, detail="Sub-goal title is required")
     load_goal(db, goal_id)
+    max_so = (
+        db.query(func.max(models.SubGoal.sort_order))
+        .filter(models.SubGoal.goal_id == goal_id)
+        .scalar()
+    )
+    so = payload.sort_order if payload.sort_order else int(max_so or 0) + 1
     sg = models.SubGoal(
         goal_id=goal_id,
-        title=payload.title,
-        icon=payload.icon,
-        sort_order=payload.sort_order,
+        title=title[:200],
+        icon=(payload.icon or "sub-dot")[:40],
+        sort_order=so,
     )
     db.add(sg)
-    db.commit()
+    try:
+        db.commit()
+    except Exception as exp:  # noqa: BLE001
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Could not add sub-goal: {exp}") from exp
     db.refresh(sg)
     return sg
 

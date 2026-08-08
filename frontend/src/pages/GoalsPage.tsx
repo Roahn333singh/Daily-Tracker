@@ -12,7 +12,14 @@ export function GoalsPage() {
   const load = useCallback(async () => {
     try {
       setError(null)
-      setGoals(await api.listGoals())
+      const data = await api.listGoals()
+      data.sort((a, b) => {
+        const tb = b.created_at ? Date.parse(b.created_at) : 0
+        const ta = a.created_at ? Date.parse(a.created_at) : 0
+        if (tb !== ta) return tb - ta
+        return b.id - a.id
+      })
+      setGoals(data)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load')
     } finally {

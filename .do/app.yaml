@@ -1,5 +1,12 @@
 name: daily-tracker
 region: nyc
+# Managed Postgres survives redeploys. App Platform host disk does NOT
+# (SQLite alone will lose every goal/meal/key on each deploy).
+databases:
+  - name: tracker-db
+    engine: PG
+    version: "16"
+    production: false
 services:
   - name: web
     dockerfile_path: Dockerfile
@@ -13,6 +20,9 @@ services:
     health_check:
       http_path: /api/health
     envs:
+      - key: DATABASE_URL
+        scope: RUN_TIME
+        value: ${tracker-db.DATABASE_URL}
       - key: GEMINI_API_KEY
         scope: RUN_TIME
         type: SECRET
