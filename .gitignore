@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.pyc
+tracker.db
+*.db
+.DS_Store
+node_modules/
+frontend/dist/
+# API
+backend/.env
+backend/uploads/
+
+# docker data
+tracker_data/
+*.tgz

@@ -1,0 +1,90 @@
+.momentum {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.5rem 1rem 1.25rem;
+}
+
+.momentum__title {
+  margin: 0 0 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--text);
+}
+
+.momentum__ring-wrap {
+  width: min(280px, 78vw);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+}
+
+.momentum__ring {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  animation: momentum-in 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.momentum__bar {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 16px;
+  margin-left: -1.5px;
+  margin-top: -8px;
+  border-radius: 2px;
+  transform-origin: center center;
+  transition: background 0.25s ease, opacity 0.25s ease;
+}
+
+.momentum__bar.is-filled {
+  box-shadow: 0 0 0 0 transparent;
+}
+
+.momentum__center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  z-index: 1;
+}
+
+.momentum__value {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 12vw, 3.75rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.momentum__status {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+}
+
+.momentum__streak {
+  margin-top: 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+
+@keyframes momentum-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
