@@ -226,4 +226,22 @@ export const api = {
       `/api/fuel/pack-item?food_id=${encodeURIComponent(foodId)}&portion_index=${portionIndex}`,
       { method: 'POST' },
     ),
+  getVisionSettings: () => request<VisionSettings>('/api/settings/vision'),
+  setVisionKey: (api_key: string) =>
+    request<VisionSettings>('/api/settings/vision', {
+      method: 'PUT',
+      body: JSON.stringify({ api_key }),
+    }),
+  clearVisionKey: () =>
+    request<VisionSettings>('/api/settings/vision', { method: 'DELETE' }),
+}
+
+export interface VisionSettings {
+  configured: boolean
+  provider: string | null
+  model: string
+  source: string | null
+  has_app_key: boolean
+  has_env_key: boolean
+  key_hint: string | null
 }

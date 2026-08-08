@@ -15,6 +15,7 @@ import httpx
 
 from . import models
 from .food_pack import ground_item, item_from_pack, search_food_pack, suggest_from_hint
+from .settings_store import get_gemini_key_from_db
 
 VISION_SYSTEM = """You are a nutrition estimator for plate photos.
 Return ONLY valid JSON (no markdown) with this shape:
@@ -44,12 +45,25 @@ Rules:
 Provider = Literal["gemini", "openai"]
 
 
-def _gemini_key() -> str | None:
+def _env_gemini_key() -> str | None:
     return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or os.getenv("GOOGLE_AI_API_KEY")
+
+
+def _gemini_key() -> str | None:
+    # In-app key wins so users can rotate without re-deploying DigitalOcean env
+    return get_gemini_key_from_db() or _env_gemini_key()
 
 
 def _openai_key() -> str | None:
     return os.getenv("VISION_API_KEY") or os.getenv("OPENAI_API_KEY")
+
+
+def vision_key_source() -> str | None:
+    if get_gemini_key_from_db():
+        return "app"
+    if _env_gemini_key() or _openai_key():
+        return "env"
+    return None
 
 
 def vision_provider() -> Provider | None:
@@ -68,6 +82,24 @@ def vision_provider() -> Provider | None:
 
 def vision_configured() -> bool:
     return vision_provider() is not None
+
+
+def vision_status() -> dict[str, Any]:
+    app_key = get_gemini_key_from_db()
+    env_key = _env_gemini_key()
+    provider = vision_provider()
+    active = _gemini_key() if provider == "gemini" else (_openai_key() if provider == "openai" else None)
+    from .settings_store import key_hint
+
+    return {
+        "configured": provider is not None,
+        "provider": provider,
+        "model": _gemini_model() if (provider or "gemini") == "gemini" else _openai_model(),
+        "source": vision_key_source(),
+        "has_app_key": bool(app_key),
+        "has_env_key": bool(env_key or _openai_key()),
+        "key_hint": key_hint(active or app_key or env_key),
+    }
 
 
 def _gemini_model() -> str:

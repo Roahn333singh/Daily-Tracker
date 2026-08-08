@@ -1,0 +1,72 @@
+.key-settings__panel {
+  max-width: 480px;
+}
+
+.key-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-soft);
+}
+
+.key-status strong {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.key-status.is-on {
+  border-color: #a7f3d0;
+  background: #ecfdf5;
+}
+
+.key-status.is-on strong {
+  color: #065f46;
+}
+
+.key-status.is-off {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.key-status.is-off strong {
+  color: #991b1b;
+}
+
+.key-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.4rem;
+}
+
+.key-input-row input {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+.key-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.key-ok {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: #047857;
+}
+
+.key-settings .hint a {
+  color: #2563eb;
+}

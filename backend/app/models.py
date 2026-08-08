@@ -122,3 +122,13 @@ class UserFoodMemory(Base):
     kcal_high: Mapped[int] = mapped_column(Integer, default=0)
     use_count: Mapped[int] = mapped_column(Integer, default=1)
     last_used: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class AppSetting(Base):
+    """Key/value settings stored in SQLite (e.g. in-app Gemini API key)."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[str] = mapped_column(Text, default="")
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

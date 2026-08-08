@@ -179,6 +179,20 @@ class FoodMemoryOut(BaseModel):
     last_used: datetime
 
 
+class VisionKeyUpdate(BaseModel):
+    api_key: str = Field(..., min_length=10, max_length=500)
+
+
+class VisionSettingsOut(BaseModel):
+    configured: bool
+    provider: str | None = None
+    model: str
+    source: str | None = None  # app | env
+    has_app_key: bool = False
+    has_env_key: bool = False
+    key_hint: str | None = None
+
+
 class GoalOut(GoalBase):
     model_config = ConfigDict(from_attributes=True)
 

@@ -4,6 +4,7 @@ import { api, type Goal } from '../api'
 import { CalendarGrid } from '../components/CalendarGrid'
 import { FuelLogSheet } from '../components/FuelLogSheet'
 import { GoalTabs } from '../components/GoalTabs'
+import { KeySettings } from '../components/KeySettings'
 import { MomentumGauge } from '../components/MomentumGauge'
 import { FunkyIcon } from '../icons/FunkyIcon'
 import { buildCalendar } from '../utils/calendar'
@@ -17,6 +18,7 @@ export function TrackerPage() {
   const [busy, setBusy] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [dayMealsOpen, setDayMealsOpen] = useState<string | null>(null)
+  const [keyOpen, setKeyOpen] = useState(false)
 
   const load = useCallback(async (preferId?: number | null) => {
     setError(null)
@@ -188,6 +190,15 @@ export function TrackerPage() {
       <header className="tracker__top">
         <h1 className="brand">daily.momentum</h1>
         <div className="tracker__actions">
+          <button
+            type="button"
+            className="icon-btn"
+            aria-label="API key settings"
+            title="Gemini API key"
+            onClick={() => setKeyOpen(true)}
+          >
+            ⚙
+          </button>
           <Link to="/goals" className="text-link">
             goals
           </Link>
@@ -322,6 +333,14 @@ export function TrackerPage() {
             </Link>
           </footer>
         </>
+      )}
+
+      {keyOpen && (
+        <KeySettings
+          open={keyOpen}
+          onClose={() => setKeyOpen(false)}
+          onChanged={() => void load(activeId)}
+        />
       )}
 
       {logOpen && detailed && isFuel && (

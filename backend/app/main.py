@@ -24,7 +24,14 @@ from .fuel_services import (
 )
 from .migrate_db import migrate_schema
 from .services import enrich_goal, ensure_fuel_seed, migrate_icon_ids, seed_if_empty
-from .vision_estimate import estimate_from_image, offline_estimate, vision_configured, vision_provider
+from .vision_estimate import (
+    estimate_from_image,
+    offline_estimate,
+    vision_configured,
+    vision_provider,
+    vision_status,
+)
+from .settings_store import KEY_GEMINI, delete_setting, set_setting
 
 UPLOAD_ROOT = Path(os.getenv("UPLOAD_DIR", str(Path(__file__).resolve().parent.parent / "uploads")))
 UPLOAD_DIR = UPLOAD_ROOT / "meals"
@@ -81,11 +88,33 @@ def load_goal(db: Session, goal_id: int) -> models.Goal:
 
 @app.get("/api/health")
 def health():
+    status = vision_status()
     return {
         "status": "ok",
-        "vision_configured": vision_configured(),
-        "vision_provider": vision_provider(),
+        "vision_configured": status["configured"],
+        "vision_provider": status["provider"],
+        "vision_source": status["source"],
     }
+
+
+@app.get("/api/settings/vision", response_model=schemas.VisionSettingsOut)
+def get_vision_settings():
+    return vision_status()
+
+
+@app.put("/api/settings/vision", response_model=schemas.VisionSettingsOut)
+def put_vision_key(payload: schemas.VisionKeyUpdate, db: Session = Depends(get_db)):
+    key = (payload.api_key or "").strip()
+    if len(key) < 10:
+        raise HTTPException(status_code=400, detail="API key looks too short")
+    set_setting(db, KEY_GEMINI, key)
+    return vision_status()
+
+
+@app.delete("/api/settings/vision", response_model=schemas.VisionSettingsOut)
+def delete_vision_key(db: Session = Depends(get_db)):
+    delete_setting(db, KEY_GEMINI)
+    return vision_status()
 
 
 @app.get("/api/goals", response_model=list[schemas.GoalOut])
