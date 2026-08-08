@@ -5,6 +5,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session, joinedload
 
@@ -437,3 +438,29 @@ def pack_item_as_estimate(food_id: str, portion_index: int = 0):
     if food_id not in pack:
         raise HTTPException(status_code=404, detail="Food not found")
     return item_from_pack(pack[food_id], portion_index)
+
+
+# Production: serve built React SPA from STATIC_DIR (root Dockerfile / App Platform)
+_STATIC = Path(os.getenv("STATIC_DIR", ""))
+if _STATIC.is_dir() and (_STATIC / "index.html").is_file():
+    _assets = _STATIC / "assets"
+    if _assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_assets)), name="spa-assets")
+
+    @app.get("/")
+    def spa_index():
+        return FileResponse(_STATIC / "index.html")
+
+    @app.get("/{full_path:path}")
+    def spa_fallback(full_path: str):
+        # Never shadow API / uploads (registered above, but guard anyway)
+        if full_path.startswith("api") or full_path.startswith("uploads"):
+            raise HTTPException(status_code=404, detail="Not found")
+        candidate = (_STATIC / full_path).resolve()
+        try:
+            candidate.relative_to(_STATIC.resolve())
+        except ValueError:
+            raise HTTPException(status_code=404, detail="Not found") from None
+        if candidate.is_file():
+            return FileResponse(candidate)
+        return FileResponse(_STATIC / "index.html")

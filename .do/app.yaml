@@ -1,0 +1,33 @@
+name: daily-tracker
+region: nyc
+services:
+  - name: web
+    dockerfile_path: Dockerfile
+    github:
+      repo: Roahn333singh/Daily-Tracker
+      branch: main
+      deploy_on_push: true
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    health_check:
+      http_path: /api/health
+    envs:
+      - key: GEMINI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: VISION_PROVIDER
+        value: gemini
+        scope: RUN_TIME
+      - key: VISION_MODEL
+        value: gemini-2.5-flash
+        scope: RUN_TIME
+      - key: DATA_DIR
+        value: /data
+        scope: RUN_TIME
+      - key: UPLOAD_DIR
+        value: /data/uploads
+        scope: RUN_TIME
+      - key: STATIC_DIR
+        value: /app/static
+        scope: RUN_TIME

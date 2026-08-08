@@ -1,7 +1,37 @@
-# DigitalOcean deployment (Droplet + Docker Compose)
-#
-# Recommended: 1 vCPU / 1GB Droplet (or 2GB if Gemini + npm builds are heavy on the box).
-# Cost: typically the cheapest regular Ubuntu droplet region of your choice.
+## App Platform (this screen)
+
+### Why “No components detected”?
+
+Auto-detect only looks at the **repo root**. Files used to live only under `backend/` and `frontend/`, so DO saw nothing.
+
+**Fixed:** a root [`Dockerfile`](../Dockerfile) is now in `main` (push if you haven’t).
+
+### What to enter on that form
+
+| Field | Value |
+|--------|--------|
+| Git provider | GitHub |
+| Repository | `Roahn333singh/Daily-Tracker` |
+| Branch | `main` |
+| **Source directory** | **leave blank** |
+| Autodeploy | checked |
+
+Then **Next**. You should see a **Dockerfile** resource.
+
+### After resources appear
+
+1. HTTP port: **8080** (matches the root image)
+2. Environment variables → add secret:
+   - `GEMINI_API_KEY` = your key  
+   - optional: `VISION_MODEL=gemini-2.5-flash`, `VISION_PROVIDER=gemini`
+3. Create resources / launch app
+4. Open the app URL DO gives you (`https://….ondigitalocean.app`)
+
+If it still says no components: hard-refresh after `git pull` on GitHub confirms `Dockerfile` is at the root of `main`.
+
+---
+
+## Droplet path (Docker Compose)
 
 ## 1. Create a Droplet
 

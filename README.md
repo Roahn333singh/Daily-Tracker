@@ -25,13 +25,34 @@ A customizable daily goal tracker inspired by those crisp, monospaced “momentu
 
 ## Deploy (DigitalOcean)
 
-See **[deploy/DIGITALOCEAN.md](deploy/DIGITALOCEAN.md)** for a full Droplet walkthrough.
+### App Platform (GitHub connect)
 
-Quick path:
+App Platform only auto-detects `Dockerfile` / `package.json` / `requirements.txt` at the **repo root**. This monorepo now has a **root `Dockerfile`** so detection works.
+
+In the connect UI:
+
+1. Repository: `Roahn333singh/Daily-Tracker`
+2. Branch: `main`
+3. **Source directory:** leave **empty** (use repo root)
+4. Autodeploy: on
+5. Next — you should see a **Dockerfile** component
+
+Then:
+
+1. Set **HTTP port** to **8080** if asked  
+2. Add env var **`GEMINI_API_KEY`** (type: Secret) with your Gemini key  
+3. Optional: `VISION_MODEL=gemini-2.5-flash`, `VISION_PROVIDER=gemini`  
+4. Create app
+
+Also present: [`.do/app.yaml`](.do/app.yaml) for explicit App Platform config.
+
+See **[deploy/DIGITALOCEAN.md](deploy/DIGITALOCEAN.md)** for Droplet + Docker Compose (alternative).
+
+Quick Droplet path:
 
 ```bash
 # On a DO Ubuntu droplet with Docker:
-git clone <your-repo> /opt/daily-tracker
+git clone https://github.com/Roahn333singh/Daily-Tracker.git /opt/daily-tracker
 cd /opt/daily-tracker
 # put GEMINI_API_KEY in backend/.env
 docker compose up -d --build
