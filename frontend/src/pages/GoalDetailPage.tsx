@@ -171,7 +171,7 @@ export function GoalDetailPage() {
         <Link to={`/goals/${goal.id}/edit`} className="btn btn--primary btn--block">
           Edit goal
         </Link>
-        <Link to="/" className="btn btn--ghost btn--block">
+        <Link to={`/?goal=${goal.id}`} className="btn btn--ghost btn--block">
           Open tracker
         </Link>
       </div>

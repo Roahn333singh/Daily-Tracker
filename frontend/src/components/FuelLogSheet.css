@@ -174,13 +174,51 @@
 
 .fuel-item {
   display: grid;
-  grid-template-columns: 1fr 0.7fr 4.5rem auto auto;
+  grid-template-columns: 1.1fr 0.9fr 3.6rem 4.2rem auto auto;
   gap: 0.3rem;
   align-items: center;
   padding: 0.45rem;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
+}
+
+.fuel-item__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.fuel-item__name {
+  width: 100%;
+}
+
+.fuel-badge {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  width: fit-content;
+  padding: 0.08rem 0.35rem;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.fuel-badge--catalog {
+  border-color: color-mix(in srgb, #2d8a4e 40%, var(--border));
+  color: #2d8a4e;
+  background: color-mix(in srgb, #2d8a4e 10%, transparent);
+}
+
+.fuel-badge--oil {
+  border-color: color-mix(in srgb, #c47a12 40%, var(--border));
+  color: #c47a12;
+}
+
+.fuel-badge--soft {
+  opacity: 0.85;
 }
 
 .fuel-item input {
@@ -194,7 +232,8 @@
   min-width: 0;
 }
 
-.fuel-item__kcal {
+.fuel-item__kcal,
+.fuel-item__grams {
   display: flex;
   flex-direction: column;
   gap: 0.1rem;
@@ -203,7 +242,8 @@
   font-family: var(--font-mono);
 }
 
-.fuel-item__kcal input {
+.fuel-item__kcal input,
+.fuel-item__grams input {
   width: 100%;
 }
 
@@ -266,6 +306,12 @@
 @media (max-width: 520px) {
   .fuel-item {
     grid-template-columns: 1fr 1fr;
+  }
+  .fuel-item__main {
+    grid-column: 1 / -1;
+  }
+  .fuel-item__portion {
+    grid-column: 1 / -1;
   }
   .fuel-item__rm {
     grid-column: 2;

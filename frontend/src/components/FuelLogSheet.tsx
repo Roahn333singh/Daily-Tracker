@@ -197,7 +197,7 @@ export function FuelLogSheet({ goalId, accent, targetKcal, onClose, onConfirmed 
         <header className="fuel-sheet__head">
           <div>
             <h2>Log plate</h2>
-            <p>Photo → estimate → correct → confirm</p>
+            <p>Thali engine · items · portions · catalog kcal</p>
           </div>
           <button type="button" className="close-btn" onClick={onClose} aria-label="Close">
             ×
@@ -260,9 +260,17 @@ export function FuelLogSheet({ goalId, accent, targetKcal, onClose, onConfirmed 
 
           {estimate && (
             <div className="fuel-note">
-              <strong>{estimate.vision_used ? 'Vision' : estimate.source}</strong>
+              <strong>
+                {estimate.engine?.includes('dual-pass')
+                  ? 'Dual-pass Indian thali'
+                  : estimate.vision_used
+                    ? 'Vision'
+                    : estimate.source}
+              </strong>
               {' · '}
               conf {Math.round(estimate.overall_confidence * 100)}%
+              {estimate.cuisine_guess ? ` · ${estimate.cuisine_guess}` : ''}
+              {estimate.plate_context ? ` · ${estimate.plate_context}` : ''}
               <br />
               {estimate.notes}
             </div>
@@ -284,18 +292,56 @@ export function FuelLogSheet({ goalId, accent, targetKcal, onClose, onConfirmed 
               <ul className="fuel-items">
                 {items.map((it) => (
                   <li key={it.key} className="fuel-item">
-                    <input
-                      className="fuel-item__name"
-                      value={it.name}
-                      onChange={(e) => updateItem(it.key, { name: e.target.value })}
-                      placeholder="Food name"
-                    />
+                    <div className="fuel-item__main">
+                      <input
+                        className="fuel-item__name"
+                        value={it.name}
+                        onChange={(e) => updateItem(it.key, { name: e.target.value })}
+                        placeholder="Food name"
+                      />
+                      {it.grounding && (
+                        <span
+                          className={`fuel-badge fuel-badge--${
+                            it.grounding === 'catalog'
+                              ? 'catalog'
+                              : it.grounding === 'oil-model'
+                                ? 'oil'
+                                : 'soft'
+                          }`}
+                          title={
+                            it.match_score != null
+                              ? `match ${it.match_score}`
+                              : it.grounding
+                          }
+                        >
+                          {it.grounding === 'catalog'
+                            ? 'catalog'
+                            : it.grounding === 'oil-model'
+                              ? 'oil+'
+                              : it.grounding === 'memory'
+                                ? 'memory'
+                                : 'est'}
+                        </span>
+                      )}
+                    </div>
                     <input
                       className="fuel-item__portion"
                       value={it.portion_desc}
                       onChange={(e) => updateItem(it.key, { portion_desc: e.target.value })}
-                      placeholder="portion"
+                      placeholder="katori / 2 roti / half plate"
                     />
+                    <label className="fuel-item__grams">
+                      g
+                      <input
+                        type="number"
+                        min={0}
+                        value={it.grams_est ?? ''}
+                        onChange={(e) => {
+                          const g = e.target.value === '' ? null : Number(e.target.value)
+                          updateItem(it.key, { grams_est: g })
+                        }}
+                      />
+                    </label>
                     <label className="fuel-item__kcal">
                       mid
                       <input

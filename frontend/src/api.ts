@@ -29,6 +29,12 @@ export interface MealItem {
   kcal_high: number
   confidence: number
   from_memory?: boolean
+  food_id?: string | null
+  grounding?: string | null
+  match_score?: number | null
+  oil_level?: string | null
+  appearance?: string | null
+  quantity_text?: string | null
 }
 
 export interface MealLog {
@@ -101,6 +107,9 @@ export interface EstimateResult {
   total_kcal_high: number
   vision_used: boolean
   photo_path: string | null
+  engine?: string | null
+  cuisine_guess?: string | null
+  plate_context?: string | null
 }
 
 export interface DayFuel {

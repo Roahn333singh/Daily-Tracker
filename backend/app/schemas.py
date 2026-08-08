@@ -142,6 +142,11 @@ class EstimateItemOut(BaseModel):
     confidence: float = 0.5
     from_memory: bool = False
     food_id: str | None = None
+    grounding: str | None = None
+    match_score: int | None = None
+    oil_level: str | None = None
+    appearance: str | None = None
+    quantity_text: str | None = None
 
 
 class EstimateOut(BaseModel):
@@ -154,6 +159,9 @@ class EstimateOut(BaseModel):
     total_kcal_high: int = 0
     vision_used: bool = False
     photo_path: str | None = None
+    engine: str | None = None
+    cuisine_guess: str | None = None
+    plate_context: str | None = None
 
 
 class FoodPackItem(BaseModel):

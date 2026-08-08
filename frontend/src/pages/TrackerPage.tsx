@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { api, type Goal } from '../api'
 import { CalendarGrid } from '../components/CalendarGrid'
 import { FuelLogSheet } from '../components/FuelLogSheet'
@@ -10,15 +10,39 @@ import { FunkyIcon } from '../icons/FunkyIcon'
 import { buildCalendar } from '../utils/calendar'
 import './TrackerPage.css'
 
+function parseGoalParam(raw: string | null): number | null {
+  if (!raw) return null
+  const n = Number(raw)
+  return Number.isFinite(n) && n > 0 ? n : null
+}
+
 export function TrackerPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const goalFromUrl = parseGoalParam(searchParams.get('goal'))
+
   const [goals, setGoals] = useState<Goal[]>([])
-  const [activeId, setActiveId] = useState<number | null>(null)
+  const [activeId, setActiveId] = useState<number | null>(goalFromUrl)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [logOpen, setLogOpen] = useState(false)
   const [dayMealsOpen, setDayMealsOpen] = useState<string | null>(null)
   const [keyOpen, setKeyOpen] = useState(false)
+
+  const selectGoal = useCallback(
+    (id: number) => {
+      setActiveId(id)
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev)
+          next.set('goal', String(id))
+          return next
+        },
+        { replace: true },
+      )
+    },
+    [setSearchParams],
+  )
 
   const load = useCallback(async (preferId?: number | null) => {
     setError(null)
@@ -32,9 +56,10 @@ export function TrackerPage() {
       })
       setGoals(data)
       setActiveId((prev) => {
-        if (preferId != null && data.some((g) => g.id === preferId)) return preferId
+        const wanted = preferId ?? parseGoalParam(new URLSearchParams(window.location.search).get('goal'))
+        if (wanted != null && data.some((g) => g.id === wanted)) return wanted
         if (prev != null && data.some((g) => g.id === prev)) return prev
-        // Prefer fuel goal on first open
+        // Prefer fuel goal on first open (no explicit goal in URL)
         const fuel = data.find((g) => g.kind === 'fuel')
         return fuel?.id ?? data[0]?.id ?? null
       })
@@ -46,8 +71,22 @@ export function TrackerPage() {
   }, [])
 
   useEffect(() => {
-    void load()
+    void load(goalFromUrl)
   }, [load])
+
+  // Deep-link: /?goal=id from a card or “Open tracker”
+  useEffect(() => {
+    if (goalFromUrl == null || goals.length === 0) return
+    if (!goals.some((g) => g.id === goalFromUrl)) return
+    setActiveId((prev) => {
+      if (prev === goalFromUrl) return prev
+      return goalFromUrl
+    })
+  }, [goalFromUrl, goals])
+
+  useEffect(() => {
+    setDayMealsOpen(null)
+  }, [activeId])
 
   const detailed = useMemo(
     () => goals.find((g) => g.id === activeId) ?? null,
@@ -208,7 +247,7 @@ export function TrackerPage() {
         </div>
       </header>
 
-      <GoalTabs goals={goals} activeId={activeId} onSelect={setActiveId} />
+      <GoalTabs goals={goals} activeId={activeId} onSelect={selectGoal} />
 
       {!isFuel && goals.some((g) => g.kind === 'fuel') && (
         <button
@@ -217,7 +256,7 @@ export function TrackerPage() {
           onClick={() => {
             const fuel = goals.find((g) => g.kind === 'fuel')
             if (fuel) {
-              setActiveId(fuel.id)
+              selectGoal(fuel.id)
               setLogOpen(true)
             }
           }}
